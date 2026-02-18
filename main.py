@@ -48,6 +48,15 @@ def log_response(response):
 
 # ===== ROUTES =====
 
+@app.route("/", methods=["GET"])
+def index():
+    """Route racine - Info du serveur"""
+    return jsonify({
+        "message": "🚀 Meet Your IA Proxy Server is running!",
+        "service": "MeetYourIA Proxy",
+        "endpoints": ["/health", "/chat", "/status"]
+    }), 200
+
 @app.route("/health", methods=["GET"])
 def health():
     """Vérifier que le serveur est en ligne"""
@@ -190,6 +199,7 @@ def status():
         "groq_model": GROQ_MODEL,
         "api_configured": GROQ_API_KEY is not None,
         "endpoints": {
+            "/": "GET - Info du serveur",
             "/health": "GET - Vérifier que le serveur est en ligne",
             "/chat": "POST - Discuter avec Groq",
             "/status": "GET - Infos du serveur"
@@ -202,7 +212,7 @@ def status():
 def not_found(e):
     return jsonify({
         "error": "Not found",
-        "available_endpoints": ["/health", "/chat", "/status"]
+        "available_endpoints": ["/", "/health", "/chat", "/status"]
     }), 404
 
 @app.errorhandler(500)
@@ -231,7 +241,7 @@ if __name__ == "__main__":
     
     # Lancer le serveur
     port = int(os.getenv("PORT", 5000))
-    host = os.getenv("HOST", "127.0.0.1")
+    host = os.getenv("HOST", "0.0.0.0")
     
     logger.info(f"🚀 Serveur démarré sur http://{host}:{port}")
     logger.info(f"   Teste avec: curl http://{host}:{port}/health")
