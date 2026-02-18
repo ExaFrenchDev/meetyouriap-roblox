@@ -66,6 +66,10 @@ def health():
         "groq_configured": GROQ_API_KEY is not None
     }), 200
 
+@app.route("/ping")
+def ping():
+    return jsonify({"status": "ok"})
+
 @app.route("/chat", methods=["POST"])
 def chat():
     """
