@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Meet Your IA - Proxy Server
-Serveur proxy pour forwarder les requêtes Roblox vers Claude API
+Serveur proxy pour forwarder les requêtes Roblox vers Groq API
 """
 
 import os
@@ -22,10 +22,10 @@ logger = logging.getLogger('MeetYourIA-Proxy')
 # Charger les variables d'environnement
 load_dotenv()
 
-# Configuration
-CLAUDE_API_KEY = os.getenv("CLAUDE_API_KEY")
-CLAUDE_MODEL = "claude-3-5-sonnet-20241022"
-CLAUDE_API_URL = "https://api.anthropic.com/v1/messages"
+# Configuration Groq
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+GROQ_MODEL = "mixtral-8x7b-32768"
+GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 
 # Créer l'app Flask
 app = Flask(__name__)
@@ -54,13 +54,13 @@ def health():
     return jsonify({
         "status": "online",
         "service": "MeetYourIA Proxy",
-        "claude_configured": CLAUDE_API_KEY != "sk-ant-YOUR_KEY_HERE"
+        "groq_configured": GROQ_API_KEY is not None
     }), 200
 
 @app.route("/chat", methods=["POST"])
 def chat():
     """
-    Endpoint principal pour discuter avec Claude
+    Endpoint principal pour discuter avec Groq
     Reçoit un message et optionnellement un historique
     """
     try:
@@ -79,14 +79,20 @@ def chat():
         logger.info(f"   Historique: {len(history)} messages")
         
         # Vérifier la clé API
-        if CLAUDE_API_KEY == "sk-ant-YOUR_KEY_HERE":
+        if not GROQ_API_KEY:
             return jsonify({
-                "error": "Claude API key not configured",
-                "message": "Configure CLAUDE_API_KEY dans le fichier .env"
+                "error": "Groq API key not configured",
+                "message": "Configure GROQ_API_KEY dans le fichier .env"
             }), 500
         
-        # Préparer les messages pour Claude
+        # Préparer les messages pour Groq
         messages = []
+        
+        # Ajouter le system message
+        messages.append({
+            "role": "system",
+            "content": "Tu es Luna, une IA amicale pour Roblox. Lis bien l'historique pour rester cohérent. Réponds en français de manière naturelle et concise."
+        })
         
         # Ajouter l'historique
         if history:
@@ -102,61 +108,61 @@ def chat():
             "content": message
         })
         
-        # Appeler Claude API
-        logger.info(f"📤 Envoi à Claude avec {len(messages)} messages")
+        # Appeler Groq API
+        logger.info(f"📤 Envoi à Groq avec {len(messages)} messages")
         
         response = requests.post(
-            CLAUDE_API_URL,
+            GROQ_API_URL,
             headers={
-                "x-api-key": CLAUDE_API_KEY,
+                "Authorization": f"Bearer {GROQ_API_KEY}",
                 "Content-Type": "application/json"
             },
             json={
-                "model": CLAUDE_MODEL,
+                "model": GROQ_MODEL,
+                "messages": messages,
                 "max_tokens": 200,
-                "system": "Tu es Luna, une IA amicale pour Roblox. Lis bien l'historique pour rester cohérent. Réponds en français de manière naturelle et concise.",
-                "messages": messages
+                "temperature": 0.7
             },
             timeout=30
         )
         
         # Vérifier la réponse
         if response.status_code != 200:
-            logger.error(f"❌ Erreur Claude: {response.status_code}")
+            logger.error(f"❌ Erreur Groq: {response.status_code}")
             logger.error(f"   Réponse: {response.text[:200]}")
             
             return jsonify({
-                "error": f"Claude API error: {response.status_code}",
+                "error": f"Groq API error: {response.status_code}",
                 "details": response.text[:500]
             }), response.status_code
         
         # Parser la réponse
         result = response.json()
         
-        if "content" not in result or not result["content"]:
-            logger.error("❌ Réponse Claude vide")
+        if "choices" not in result or not result["choices"]:
+            logger.error("❌ Réponse Groq vide")
             return jsonify({
-                "error": "No response from Claude",
+                "error": "No response from Groq",
                 "raw": result
             }), 500
         
-        ia_response = result["content"][0]["text"]
+        ia_response = result["choices"][0]["message"]["content"]
         logger.info(f"✅ Réponse: {ia_response[:50]}...")
         
         return jsonify({
             "success": True,
             "response": ia_response,
-            "model": CLAUDE_MODEL,
+            "model": GROQ_MODEL,
             "tokens_used": {
-                "input": result.get("usage", {}).get("input_tokens", 0),
-                "output": result.get("usage", {}).get("output_tokens", 0)
+                "input": result.get("usage", {}).get("prompt_tokens", 0),
+                "output": result.get("usage", {}).get("completion_tokens", 0)
             }
         }), 200
     
     except requests.exceptions.Timeout:
-        logger.error("❌ Timeout - Claude API prend trop de temps")
+        logger.error("❌ Timeout - Groq API prend trop de temps")
         return jsonify({
-            "error": "Claude API timeout",
+            "error": "Groq API timeout",
             "message": "La requête a pris trop de temps"
         }), 504
     
@@ -181,11 +187,11 @@ def status():
         "service": "MeetYourIA Proxy",
         "version": "1.0",
         "status": "running",
-        "claude_model": CLAUDE_MODEL,
-        "api_configured": CLAUDE_API_KEY != "sk-ant-YOUR_KEY_HERE",
+        "groq_model": GROQ_MODEL,
+        "api_configured": GROQ_API_KEY is not None,
         "endpoints": {
             "/health": "GET - Vérifier que le serveur est en ligne",
-            "/chat": "POST - Discuter avec Claude",
+            "/chat": "POST - Discuter avec Groq",
             "/status": "GET - Infos du serveur"
         }
     }), 200
@@ -211,16 +217,16 @@ def server_error(e):
 if __name__ == "__main__":
     # Vérifications
     print("\n" + "="*50)
-    print("🚀 Meet Your IA - Proxy Server")
+    print("🚀 Meet Your IA - Proxy Server (Groq)")
     print("="*50)
     
-    if CLAUDE_API_KEY == "sk-ant-YOUR_KEY_HERE":
-        print("⚠️  ATTENTION: CLAUDE_API_KEY non configurée!")
-        print("   Configure le fichier .env avec ta clé Claude")
+    if not GROQ_API_KEY:
+        print("⚠️  ATTENTION: GROQ_API_KEY non configurée!")
+        print("   Configure le fichier .env avec ta clé Groq")
     else:
-        print("✅ Claude API configurée")
+        print("✅ Groq API configurée")
     
-    print(f"📝 Modèle: {CLAUDE_MODEL}")
+    print(f"📝 Modèle: {GROQ_MODEL}")
     print("="*50 + "\n")
     
     # Lancer le serveur
