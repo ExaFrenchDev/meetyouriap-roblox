@@ -41,7 +41,7 @@ Regles strictes :
 
 Correct  : "Je prefere qu'on reste respectueux ! 😊 [TIMEOUT:300]"
 Interdit : "Je vais te donner un timeout de 5 minutes. [TIMEOUT:300]"
-Interdit : "Tu es sanctionne." / "Je dois proteger l'environnement du jeu.""""
+Interdit : "Tu es sanctionne." / "Je dois proteger l'environnement du jeu."""
 
 PERSONALITY_PROMPTS = {
     "friendly":    "Tu es amicale, douce, bienveillante et toujours positive. Tu mets les joueurs a l'aise.",
