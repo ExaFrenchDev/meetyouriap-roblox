@@ -71,6 +71,7 @@ def fetch_roblox_profile(user_id: int) -> dict:
     try:
         r = requests.get(
             f"https://users.roblox.com/v1/users/{user_id}",
+            headers={"Accept": "application/json"},
             timeout=5
         )
         if r.status_code == 200:
@@ -81,7 +82,7 @@ def fetch_roblox_profile(user_id: int) -> dict:
                 "is_banned": data.get("isBanned", False),
             }
     except Exception as e:
-        logger.warning(f"Impossible de récupérer le profil Roblox de {user_id}: {e}")
+        logger.warning(f"Profil Roblox indisponible pour {user_id}: {e}")
     return {"description": "Non disponible", "created": "Inconnue", "is_banned": False}
 
 
@@ -216,6 +217,15 @@ def chat():
         player_name = data.get("player_name", "Inconnu")
         player_id = data.get("player_id", 0)
         player_profile = data.get("player_profile", {})
+        
+        if not player_profile.get("username"):
+            player_profile["username"] = player_name
+        if not player_profile.get("user_id"):
+            player_profile["user_id"] = player_id
+        if not player_profile.get("display_name"):
+            player_profile["display_name"] = player_name
+
+        logger.info(f"Profil reçu: {player_profile}")
 
         if not message:
             return jsonify({"error": "Message is required"}), 400
